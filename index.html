@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prompt Reader</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d0d12">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='10' y='10' width='80' height='80' rx='15' fill='%2315151e' stroke='%238A2BE2' stroke-width='6'/%3E%3Cpolyline points='30,35 50,50 30,65' fill='none' stroke='%23D4AF37' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='55' y1='65' x2='75' y2='65' stroke='%23D4AF37' stroke-width='8' stroke-linecap='round'/%3E%3Cpath d='M75,15 Q80,25 90,25 Q80,25 80,35 Q75,25 65,25 Q75,25 75,15 Z' fill='%23D4AF37'/%3E%3C/svg%3E">
+    <style>
+        /* Reset y configuración base para comportarse como una App Nativa */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            background-color: #0d0d12; /* Oscuro profundo */
+            color: #e2e2e2;
+            overflow: hidden; /* Evita el scroll de toda la página */
+        }
+
+        /* Contenedor principal Flexbox */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+            max-width: 600px; /* Para que no se vea gigante en PC */
+            margin: 0 auto;
+        }
+
+        /* Cabecera minimalista */
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #D4AF37; /* Dorado */
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Controles (Desplegables) */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .category-row {
+            display: flex;
+            gap: 12px;
+            align-items: stretch; /* Para que el botón tenga la misma altura que el select */
+        }
+
+        select {
+            appearance: none;
+            background-color: #1a1a24;
+            color: #fff;
+            border: 1px solid #333344;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            /* Flecha personalizada */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23D4AF37%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px top 50%;
+            background-size: 12px auto;
+            flex-grow: 1; /* Permite que el select ocupe todo el espacio disponible */
+            width: 100%;
+        }
+
+        select:focus {
+            border-color: #D4AF37; /* Dorado al enfocar */
+            box-shadow: 0 0 0 1px #D4AF37;
+        }
+
+        /* Botón de recargar */
+        .btn-refresh {
+            background-color: #1a1a24;
+            color: #D4AF37;
+            border: 1px solid #333344;
+            border-radius: 10px;
+            width: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            outline: none;
+        }
+
+        .btn-refresh:focus, .btn-refresh:hover {
+            border-color: #D4AF37;
+            box-shadow: 0 0 0 1px #D4AF37;
+        }
+
+        .btn-refresh:active {
+            transform: scale(0.95);
+        }
+
+        /* Animación de giro para el icono de recarga */
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Área del Prompt (Ocupa el resto del espacio) */
+        .prompt-display {
+            flex-grow: 1;
+            background-color: #15151e;
+            border: 1px solid #2a2a3a;
+            border-left: 3px solid;
+            border-image: linear-gradient(
+                to bottom,
+                transparent,
+                rgba(168, 85, 247, 0.8),
+                rgba(212, 175, 55, 0.8),
+                transparent
+            );
+            border-image-slice: 1;
+            border-radius: 12px;
+            padding: 16px;
+            overflow-y: auto; /* Scroll interno si es largo */
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            white-space: pre-wrap; /* Mantiene los saltos de línea del JSON */
+            color: #cccccc;
+        }
+
+        /* Botón de copiar */
+        .btn-copy {
+            background: linear-gradient(135deg, #6c23a7 0%, #8A2BE2 100%); /* Púrpura */
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-copy:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .btn-copy.success {
+            background: #D4AF37;
+            color: #0d0d12;
+        }
+
+        /* Scrollbar minimalista para webkit */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333344;
+            border-radius: 10px;
+        }
+
+        /* Pantalla de ingreso de clave */
+        .key-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #0d0d12;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 100;
+        }
+        .key-overlay.show { display: flex; }
+        .key-box {
+            width: 100%;
+            max-width: 400px;
+            background-color: #15151e;
+            border: 1px solid #2a2a3a;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .key-box h2 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #D4AF37;
+            text-align: center;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .key-box p { font-size: 0.9rem; color: #aaa; text-align: center; line-height: 1.4; }
+        .key-box input {
+            background-color: #1a1a24;
+            color: #fff;
+            border: 1px solid #333344;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+        }
+        .key-box input:focus { border-color: #D4AF37; box-shadow: 0 0 0 1px #D4AF37; }
+        .key-error { color: #ff6b6b; font-size: 0.85rem; text-align: center; min-height: 1.1em; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>Base de Prompts</h1>
+        </header>
+
+        <div class="controls">
+            <div class="category-row">
+                <select id="categorySelect" aria-label="Seleccionar Categoría">
+                    <option value="">Cargando categorías...</option>
+                </select>
+                <button id="refreshBtn" class="btn-refresh" title="Recargar base de datos" aria-label="Recargar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <select id="promptSelect" aria-label="Seleccionar Prompt">
+                <option value="">Esperando selección...</option>
+            </select>
+        </div>
+
+        <div class="prompt-display" id="promptContent">
+            Conectando a la base de datos...
+        </div>
+
+        <button class="btn-copy" id="copyBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copiar Prompt
+        </button>
+    </div>
+
+    <div class="key-overlay" id="keyOverlay">
+        <form class="key-box" id="keyForm" autocomplete="off">
+            <h2>Clave de acceso</h2>
+            <p>Ingresa la clave para descifrar tus prompts. Se guardará solo en este dispositivo.</p>
+            <input type="password" id="keyInput" placeholder="Clave secreta" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Clave secreta">
+            <div class="key-error" id="keyError"></div>
+            <button type="submit" class="btn-copy">Desbloquear</button>
+        </form>
+    </div>
+
+    <script>
+        // Configuración de origen
+        const GIST_ID = "bf323b46916f6ae88786fd1454014671";
+        const FILENAME = "prompts.json";
+        
+        // La clave ya no vive en el código: se pide al usuario y se guarda en localStorage
+        const KEY_STORAGE = 'prompts_secret_key';
+        const keyOverlay = document.getElementById('keyOverlay');
+        const keyForm = document.getElementById('keyForm');
+        const keyInput = document.getElementById('keyInput');
+        const keyError = document.getElementById('keyError');
+
+        function leerClaveGuardada() {
+            try { return localStorage.getItem(KEY_STORAGE); } catch (e) { return null; }
+        }
+        function guardarClave(k) {
+            try { localStorage.setItem(KEY_STORAGE, k); } catch (e) {}
+            // Pedir almacenamiento persistente para que el navegador no lo borre solo
+            if (navigator.storage && navigator.storage.persist) {
+                navigator.storage.persist().catch(() => {});
+            }
+        }
+        function borrarClave() {
+            try { localStorage.removeItem(KEY_STORAGE); } catch (e) {}
+        }
+
+        // Muestra la pantalla de clave y devuelve una promesa con lo que escriba el usuario
+        function pedirClave(mensajeError = '') {
+            return new Promise((resolve) => {
+                keyError.textContent = mensajeError;
+                keyInput.value = '';
+                keyOverlay.classList.add('show');
+                setTimeout(() => keyInput.focus(), 50);
+                keyForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    const k = keyInput.value.trim();
+                    if (!k) return;
+                    keyOverlay.classList.remove('show');
+                    resolve(k);
+                };
+            });
+        }
+
+        // Obtiene la base descifrada; si la clave falta o es incorrecta, la pide de nuevo
+        async function obtenerBaseDescifrada(textoBase64) {
+            let clave = leerClaveGuardada();
+            let mensaje = '';
+            while (true) {
+                if (!clave) clave = await pedirClave(mensaje);
+                try {
+                    const datos = await descifrarGist(textoBase64, clave);
+                    guardarClave(clave);
+                    return datos;
+                } catch (e) {
+                    borrarClave();
+                    clave = null;
+                    mensaje = 'Clave incorrecta. Inténtalo de nuevo.';
+                }
+            }
+        }
+
+        let database = [];
+        let categoriesMap = {}; 
+
+        // Elementos del DOM
+        const categorySelect = document.getElementById('categorySelect');
+        const promptSelect = document.getElementById('promptSelect');
+        const promptContent = document.getElementById('promptContent');
+        const copyBtn = document.getElementById('copyBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        // Función para descifrar el contenido recibido del Gist (AES-GCM)
+        async function descifrarGist(textoBase64DelGist, claveStr) {
+            try {
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(claveStr);
+                const cryptoKey = await window.crypto.subtle.importKey(
+                    "raw", keyData, { name: "AES-GCM" }, false, ["decrypt"]
+                );
+
+                const binaryString = atob(textoBase64DelGist);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const iv = bytes.slice(0, 12);
+                const textoCifrado = bytes.slice(12);
+
+                const decryptedBuffer = await window.crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    cryptoKey,
+                    textoCifrado
+                );
+
+                const decoder = new TextDecoder();
+                const jsonString = decoder.decode(decryptedBuffer);
+                return JSON.parse(jsonString);
+
+            } catch (error) {
+                console.error("Error al descifrar. ¿La clave es correcta?", error);
+                throw new Error("No se pudo desencriptar la información. Verifica la clave secreta.");
+            }
+        }
+
+        // Inicializar o recargar la app
+        // Acepta parámetros para restaurar selecciones previas tras recargar
+        async function initApp(restoreCategory = null, restorePromptName = null) {
+            const CACHE_KEY = 'prompts_gist_cache';
+            try {
+                let responseData;
+                try {
+                    const apiUrl = `https://api.github.com/gists/${GIST_ID}`;
+                    const metaResponse = await fetch(apiUrl);
+
+                    if (!metaResponse.ok) {
+                        throw new Error(`Error al obtener el Gist: ${metaResponse.status}`);
+                    }
+
+                    const gistMetadata = await metaResponse.json();
+                    const rawUrl = gistMetadata.files[FILENAME].raw_url;
+
+                    const response = await fetch(rawUrl);
+                    if (!response.ok) throw new Error("Error de red al descargar el archivo");
+
+                    responseData = await response.json();
+
+                    // Respaldo local para uso offline (se guarda tal cual, aún cifrado)
+                    try { localStorage.setItem(CACHE_KEY, JSON.stringify(responseData)); } catch (e) {}
+                } catch (netError) {
+                    // Sin conexión o error de red: usar la última copia guardada
+                    const saved = localStorage.getItem(CACHE_KEY);
+                    if (!saved) throw netError;
+                    responseData = JSON.parse(saved);
+                    console.warn('Modo offline: usando datos guardados.');
+                }
+
+                if (responseData && responseData.encrypted && responseData.data) {
+                    database = await obtenerBaseDescifrada(responseData.data);
+                } else {
+                    database = responseData;
+                }
+
+                processData(restoreCategory, restorePromptName);
+            } catch (error) {
+                promptContent.innerHTML = `<span style="color:#ff6b6b">Error al cargar los datos.</span><br><br>${error.message}`;
+            }
+        }
+
+        // Procesar el JSON y agrupar por categoría
+        function processData(restoreCategory, restorePromptName) {
+            categoriesMap = {};
+            
+            database.forEach(item => {
+                if (!categoriesMap[item.category]) {
+                    categoriesMap[item.category] = [];
+                }
+                categoriesMap[item.category].push(item);
+            });
+
+            populateCategories(restoreCategory, restorePromptName);
+        }
+
+        // Llenar el primer desplegable (Categorías)
+        function populateCategories(restoreCategory, restorePromptName) {
+            const categories = Object.keys(categoriesMap).sort();
+            categorySelect.innerHTML = '';
+
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categorySelect.appendChild(option);
+            });
+
+            // Si se envió una categoría para restaurar y aún existe, se selecciona.
+            if (restoreCategory && categories.includes(restoreCategory)) {
+                categorySelect.value = restoreCategory;
+            } else if (categories.includes("Mobians")) {
+                categorySelect.value = "Mobians";
+            } else if (categories.length > 0) {
+                categorySelect.value = categories[0];
+            }
+
+            updatePromptList(restorePromptName);
+        }
+
+        // Llenar el segundo desplegable basado en la categoría seleccionada
+        function updatePromptList(restorePromptName = null) {
+            const selectedCat = categorySelect.value;
+            const prompts = categoriesMap[selectedCat] || [];
+            
+            promptSelect.innerHTML = '';
+            
+            let foundIndex = -1;
+
+            prompts.forEach((p, index) => {
+                const option = document.createElement('option');
+                option.value = index; 
+                option.textContent = p.name;
+                promptSelect.appendChild(option);
+
+                // Verificamos si queremos restaurar el prompt previo por su nombre
+                if (restorePromptName && p.name === restorePromptName) {
+                    foundIndex = index;
+                }
+            });
+
+            // Si se encontró el prompt anterior, lo volvemos a seleccionar
+            if (foundIndex !== -1) {
+                promptSelect.value = foundIndex;
+            }
+
+            displayPrompt();
+        }
+
+        // Mostrar el contenido del prompt seleccionado
+        function displayPrompt() {
+            const selectedCat = categorySelect.value;
+            const selectedIndex = promptSelect.value;
+            
+            if (selectedCat && selectedIndex !== "") {
+                const promptData = categoriesMap[selectedCat][selectedIndex];
+                promptContent.textContent = promptData.prompt;
+            } else {
+                promptContent.textContent = "Selecciona un prompt válido.";
+            }
+        }
+
+        // Evento: Clic en botón "Recargar"
+        refreshBtn.addEventListener('click', async () => {
+            // Guardamos la selección actual antes de recargar
+            const currentCategory = categorySelect.value;
+            const currentPromptIndex = promptSelect.value;
+            let currentPromptName = null;
+            
+            if (currentCategory && currentPromptIndex !== "") {
+                currentPromptName = categoriesMap[currentCategory][currentPromptIndex].name;
+            }
+
+            // Iniciamos la animación visual
+            const icon = refreshBtn.querySelector('svg');
+            icon.classList.add('spin');
+            refreshBtn.disabled = true;
+            promptContent.textContent = "Actualizando base de datos...";
+
+            // Llamamos a initApp y le pasamos los datos a restaurar
+            await initApp(currentCategory, currentPromptName);
+
+            // Detenemos la animación
+            icon.classList.remove('spin');
+            refreshBtn.disabled = false;
+        });
+
+        // Copiar al portapapeles
+        copyBtn.addEventListener('click', async () => {
+            const textToCopy = promptContent.textContent;
+            
+            if (!textToCopy || textToCopy === "Conectando a la base de datos..." || textToCopy === "Actualizando base de datos..." || textToCopy === "Selecciona un prompt válido.") return;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                
+                const originalText = copyBtn.innerHTML;
+                copyBtn.classList.add('success');
+                copyBtn.innerHTML = '¡Copiado!';
+                
+                setTimeout(() => {
+                    copyBtn.classList.remove('success');
+                    copyBtn.innerHTML = originalText;
+                }, 2000);
+            } catch (err) {
+                alert('No se pudo copiar el texto. Permisos denegados.');
+            }
+        });
+
+        // Event Listeners para los desplegables
+        categorySelect.addEventListener('change', () => updatePromptList());
+        promptSelect.addEventListener('change', displayPrompt);
+
+        // Iniciar al cargar (sin restaurar nada por defecto)
+        window.addEventListener('DOMContentLoaded', () => initApp());
+
+        // Registrar Service Worker (requiere HTTPS o localhost)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch((err) => console.error('SW error:', err));
+            });
+        }
+    </script>
+</body>
+</html>
